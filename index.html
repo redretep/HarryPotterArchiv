@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HarryPotterArchiv</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --spotify-green: #1DB954;
+            --spotify-black: #121212;
+            --spotify-dark-grey: #181818;
+            --spotify-light-grey: #282828;
+            --spotify-text: #b3b3b3;
+        }
+
+        body {
+            background-color: var(--spotify-black);
+            color: white;
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            overflow: hidden; /* Main layout handles scrolling */
+        }
+
+        .sidebar {
+            background-color: black;
+            width: 280px;
+        }
+
+        .main-content {
+            background: linear-gradient(to bottom, #222222 0%, var(--spotify-black) 40%);
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .player-bar {
+            background-color: var(--spotify-dark-grey);
+            border-top: 1px solid #282828;
+            height: 90px;
+        }
+
+        .book-card {
+            background-color: var(--spotify-dark-grey);
+            transition: background-color 0.3s ease;
+            cursor: pointer;
+        }
+
+        .book-card:hover {
+            background-color: var(--spotify-light-grey);
+        }
+
+        .track-row {
+            display: grid;
+            grid-template-columns: 40px 1fr 100px;
+            align-items: center;
+            padding: 8px 16px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+
+        .track-row:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .track-row.active {
+            color: var(--spotify-green);
+        }
+
+        .progress-bar-container {
+            height: 4px;
+            background-color: #4f4f4f;
+            border-radius: 2px;
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background-color: white;
+            border-radius: 2px;
+            transition: background-color 0.1s;
+        }
+
+        .progress-bar-container:hover .progress-bar-fill {
+            background-color: var(--spotify-green);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 12px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 100;
+            place-items: center;
+        }
+
+        .btn-play-hero {
+            background-color: var(--spotify-green);
+            color: black;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.1s, background-color 0.1s;
+        }
+
+        .btn-play-hero:hover {
+            transform: scale(1.05);
+            background-color: #1ed760;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col">
+
+    <div id="loader" class="loading-overlay">
+        <div class="text-center">
+            <div class="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mb-4 mx-auto"></div>
+            <p id="loaderText" class="font-medium">Wird geladen...</p>
+        </div>
+    </div>
+
+    <div class="flex flex-1 overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="sidebar p-6 hidden md:flex flex-col gap-6">
+            <div class="flex-1 mt-4 overflow-y-auto custom-scrollbar">
+                <p class="text-xs font-bold text-[#b3b3b3] uppercase tracking-widest mb-4">Bibliothek</p>
+                <div id="sidebarList" class="space-y-3">
+                    <!-- Sidebar list will be populated -->
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content custom-scrollbar p-6">
+            <!-- Grid View -->
+            <div id="gridView">
+                <h1 class="text-3xl font-bold mb-6">Alle Hörbücher</h1>
+                <div id="bookGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                    <!-- Book cards populate here -->
+                </div>
+            </div>
+
+            <!-- Detail View -->
+            <div id="detailView" class="hidden">
+                <button id="backBtn" class="mb-6 flex items-center gap-2 text-sm font-bold opacity-70 hover:opacity-100">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    Zurück
+                </button>
+                
+                <div class="flex flex-col md:flex-row gap-8 items-end mb-8">
+                    <img id="detailCover" src="" class="w-48 h-48 md:w-64 md:h-64 shadow-2xl rounded-sm object-cover" alt="Cover">
+                    <div class="flex-1">
+                        <p class="text-xs font-bold uppercase tracking-widest mb-2">Hörbuch</p>
+                        <h2 id="detailTitle" class="text-4xl md:text-6xl font-black mb-4">Titel</h2>
+                        <div class="flex items-center gap-2 text-sm font-bold">
+                            <span>J.K. Rowling, gelesen von Rufus Beck</span>
+                            <span class="opacity-50">•</span>
+                            <span id="detailTrackCount" class="opacity-50">0 Kapitel</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-6 mb-8">
+                    <button id="detailPlayBtn" class="btn-play-hero">
+                        <svg class="w-8 h-8 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8,5.14V19.14L19,12.14L8,5.14Z" /></svg>
+                    </button>
+                    <button id="downloadAll" class="opacity-50 hover:opacity-100 transition-opacity">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    </button>
+                </div>
+
+                <div class="border-b border-white border-opacity-10 mb-4 pb-2 grid grid-cols-[40px_1fr_100px] px-4 text-xs font-bold text-[#b3b3b3] uppercase tracking-widest">
+                    <span>#</span>
+                    <span>Titel</span>
+                    <span class="text-right">made by redretep</span>
+                </div>
+                <div id="trackList" class="space-y-1"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Player Bar -->
+    <footer class="player-bar px-4 flex items-center justify-between z-20">
+        <!-- Left: Track Info -->
+        <div class="flex items-center gap-4 w-[30%] min-w-[180px]">
+            <img id="playerCover" src="https://redretep.github.io/HarryPotterArchiv/images/1.jpg" class="w-14 h-14 rounded-sm shadow-md object-cover hidden sm:block" alt="">
+            <div class="overflow-hidden">
+                <div id="playerTrackName" class="text-sm font-medium truncate">Noch nichts gewählt</div>
+                <div id="playerBookName" class="text-[11px] text-[#b3b3b3] truncate">Wähle ein Buch</div>
+            </div>
+        </div>
+
+        <!-- Center: Controls -->
+        <div class="flex flex-col items-center max-w-[40%] w-full gap-2">
+            <div class="flex items-center gap-6">
+                <button id="prevBtn" class="text-[#b3b3b3] hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6,18L14.5,12L6,6V18M16,6V18H18V6H16Z" /></svg>
+                </button>
+                <button id="playBtn" class="bg-white text-black rounded-full w-8 h-8 flex items-center justify-center hover:scale-105 transition-transform">
+                    <svg id="playIcon" class="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8,5.14V19.14L19,12.14L8,5.14Z" /></svg>
+                    <svg id="pauseIcon" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M14,19H18V5H14M6,19H10V5H6V19Z" /></svg>
+                </button>
+                <button id="nextBtn" class="text-[#b3b3b3] hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M16,18H18V6H16M6,18L14.5,12L6,6V18Z" /></svg>
+                </button>
+            </div>
+            <div class="flex items-center gap-2 w-full text-[11px] text-[#b3b3b3]">
+                <span id="currentTime">0:00</span>
+                <div class="progress-bar-container" id="progressBar">
+                    <div class="progress-bar-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+                <span id="duration">0:00</span>
+            </div>
+        </div>
+
+        <!-- Right: Volume/Misc -->
+        <div class="flex items-center justify-end gap-3 w-[30%] min-w-[120px]">
+             <button id="downloadEpisode" class="text-[#b3b3b3] hover:text-white" title="Episode laden">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+             </button>
+        </div>
+    </footer>
+
+    <audio id="audioElement"></audio>
+
+    <script>
+        const baseUrl = "https://redretep.github.io/HarryPotterArchiv/";
+        const imgUrl = "https://redretep.github.io/HarryPotterArchiv/images/";
+        const csvFiles = [
+            { id: 1, file: "1 - Harry Potter und der Stein der Weisen.csv" },
+            { id: 2, file: "2 - Harry Potter und die Kammer des Schreckens.csv" },
+            { id: 3, file: "3 - Harry Potter und der Gefangene von Askaban.csv" },
+            { id: 4, file: "4 - Harry Potter und der Feuerkelch.csv" },
+            { id: 5, file: "5 - Harry Potter und der Orden des Phönix.csv" },
+            { id: 6, file: "6 - Harry Potter und der Halbblutprinz.csv" },
+            { id: 7, file: "7 - Harry Potter und die Heiligtümer des Todes.csv" }
+        ];
+
+        let collections = {}; 
+        let activeBook = null;
+        let currentTrackIndex = -1;
+        const audio = document.getElementById('audioElement');
+
+        // UI Selectors
+        const bookGrid = document.getElementById('bookGrid');
+        const sidebarList = document.getElementById('sidebarList');
+        const gridView = document.getElementById('gridView');
+        const detailView = document.getElementById('detailView');
+        const loader = document.getElementById('loader');
+        const playBtn = document.getElementById('playBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+
+        async function init() {
+            loader.style.display = 'grid';
+            for (let entry of csvFiles) {
+                try {
+                    const response = await fetch(baseUrl + encodeURIComponent(entry.file));
+                    const text = await response.text();
+                    const shortTitle = entry.file.split('-')[1]?.split('.')[0]?.trim();
+                    collections[entry.id] = {
+                        id: entry.id,
+                        fullTitle: entry.file.replace('.csv', ''),
+                        shortTitle: shortTitle,
+                        image: `${imgUrl}${entry.id}.jpg`,
+                        tracks: parseCSV(text)
+                    };
+                } catch (err) { console.error(err); }
+            }
+            renderUI();
+            loader.style.display = 'none';
+        }
+
+        function parseCSV(text) {
+            const lines = text.split('\n');
+            const result = [];
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                const matches = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || [];
+                const clean = matches.map(p => p.replace(/^"|"$/g, '').trim());
+                if (clean.length >= 3) {
+                    result.push({ podcast: clean[0], name: clean[1], url: clean[2] });
+                }
+            }
+            return result;
+        }
+
+        function renderUI() {
+            bookGrid.innerHTML = '';
+            sidebarList.innerHTML = '';
+            
+            Object.values(collections).forEach(book => {
+                // Grid Item
+                const card = document.createElement('div');
+                card.className = 'book-card p-4 rounded-lg shadow-lg';
+                card.innerHTML = `
+                    <img src="${book.image}" class="w-full aspect-square object-cover rounded-md mb-4 shadow-md" alt="">
+                    <h3 class="font-bold text-sm truncate mb-1">${book.shortTitle}</h3>
+                    <p class="text-xs text-[#b3b3b3]">Hörbuch</p>
+                `;
+                card.onclick = () => showDetail(book.id);
+                bookGrid.appendChild(card);
+
+                // Sidebar Item
+                const sideItem = document.createElement('div');
+                sideItem.className = 'text-sm text-[#b3b3b3] hover:text-white cursor-pointer truncate transition-colors';
+                sideItem.innerText = book.shortTitle;
+                sideItem.onclick = () => showDetail(book.id);
+                sidebarList.appendChild(sideItem);
+            });
+        }
+
+        function showDetail(id) {
+            activeBook = collections[id];
+            gridView.classList.add('hidden');
+            detailView.classList.remove('hidden');
+            
+            document.getElementById('detailCover').src = activeBook.image;
+            document.getElementById('detailTitle').innerText = activeBook.shortTitle;
+            document.getElementById('detailTrackCount').innerText = `${activeBook.tracks.length} Episoden`;
+            
+            renderTracks();
+        }
+
+        function renderTracks() {
+            const list = document.getElementById('trackList');
+            list.innerHTML = '';
+            activeBook.tracks.forEach((track, index) => {
+                const isActive = activeBook.id === currentBookId() && index === currentTrackIndex;
+                const div = document.createElement('div');
+                div.className = `track-row ${isActive ? 'active' : ''}`;
+                div.innerHTML = `
+                    <span class="text-sm opacity-50">${index + 1}</span>
+                    <div class="overflow-hidden">
+                        <div class="text-sm font-medium truncate">${track.name}</div>
+                        <div class="text-[11px] opacity-70 truncate uppercase tracking-tight">${track.podcast}</div>
+                    </div>
+                    <div class="text-right">
+                        <button onclick="event.stopPropagation(); downloadSingle(${index})" class="opacity-0 hover:opacity-100 track-action">
+                             <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        </button>
+                    </div>
+                `;
+                div.onclick = () => playTrack(activeBook.id, index);
+                list.appendChild(div);
+            });
+        }
+
+        let _playingBookId = -1;
+        function currentBookId() { return _playingBookId; }
+
+        function playTrack(bookId, index) {
+            const book = collections[bookId];
+            if (!book || index < 0 || index >= book.tracks.length) return;
+
+            _playingBookId = bookId;
+            currentTrackIndex = index;
+            const track = book.tracks[index];
+
+            audio.src = track.url;
+            audio.play();
+
+            // Player UI
+            document.getElementById('playerTrackName').innerText = track.name;
+            document.getElementById('playerBookName').innerText = book.shortTitle;
+            document.getElementById('playerCover').src = book.image;
+            document.getElementById('playerCover').classList.remove('hidden');
+
+            updatePlayStateUI();
+            renderTracks();
+        }
+
+        function updatePlayStateUI() {
+            const isPlaying = !audio.paused;
+            document.getElementById('playIcon').classList.toggle('hidden', isPlaying);
+            document.getElementById('pauseIcon').classList.toggle('hidden', !isPlaying);
+            
+            const detailBtn = document.getElementById('detailPlayBtn');
+            if (detailBtn) {
+                 detailBtn.innerHTML = isPlaying ? 
+                 `<svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M14,19H18V5H14M6,19H10V5H6V19Z" /></svg>` : 
+                 `<svg class="w-8 h-8 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8,5.14V19.14L19,12.14L8,5.14Z" /></svg>`;
+            }
+        }
+
+        // Logic
+        audio.ontimeupdate = () => {
+            if (!audio.duration) return;
+            const pct = (audio.currentTime / audio.duration) * 100;
+            progressFill.style.width = `${pct}%`;
+            document.getElementById('currentTime').innerText = formatTime(audio.currentTime);
+            document.getElementById('duration').innerText = formatTime(audio.duration);
+        };
+
+        audio.onended = () => {
+            playTrack(currentBookId(), currentTrackIndex + 1);
+        };
+
+        playBtn.onclick = () => {
+            if (audio.src) {
+                audio.paused ? audio.play() : audio.pause();
+                updatePlayStateUI();
+            } else if (activeBook) {
+                playTrack(activeBook.id, 0);
+            }
+        };
+
+        document.getElementById('detailPlayBtn').onclick = () => playBtn.click();
+        document.getElementById('prevBtn').onclick = () => playTrack(currentBookId(), currentTrackIndex - 1);
+        document.getElementById('nextBtn').onclick = () => playTrack(currentBookId(), currentTrackIndex + 1);
+        document.getElementById('backBtn').onclick = () => {
+            detailView.classList.add('hidden');
+            gridView.classList.remove('hidden');
+        };
+
+        progressBar.onclick = (e) => {
+            const rect = progressBar.getBoundingClientRect();
+            audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
+        };
+
+        function formatTime(s) {
+            const m = Math.floor(s / 60);
+            const sec = Math.floor(s % 60);
+            return `${m}:${sec < 10 ? '0' : ''}${sec}`;
+        }
+
+        // Downloads
+        window.downloadSingle = (idx) => {
+            const t = activeBook.tracks[idx];
+            saveFile(t.url, `${t.name}.mp3`);
+        }
+
+        document.getElementById('downloadEpisode').onclick = () => {
+            if (currentTrackIndex === -1) return;
+            const t = collections[currentBookId()].tracks[currentTrackIndex];
+            saveFile(t.url, `${t.name}.mp3`);
+        };
+
+        document.getElementById('downloadAll').onclick = async () => {
+            if (!activeBook) return;
+            loader.style.display = 'grid';
+            document.getElementById('loaderText').innerText = "Trank wird gebraut (ZIP)...";
+            try {
+                const zip = new JSZip();
+                const folder = zip.folder(activeBook.shortTitle);
+                const promises = activeBook.tracks.map(async t => {
+                    const r = await fetch(t.url);
+                    folder.file(`${t.name.replace(/[^\w\s-]/gi, '')}.mp3`, await r.blob());
+                });
+                await Promise.all(promises);
+                const blob = await zip.generateAsync({type:"blob"});
+                saveFile(URL.createObjectURL(blob), `${activeBook.shortTitle}.zip`);
+            } catch(e) { console.error(e); }
+            loader.style.display = 'none';
+        };
+
+        function saveFile(url, name) {
+            const a = document.createElement('a');
+            a.href = url; a.download = name; a.target = "_blank";
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        }
+
+        init();
+    </script>
+</body>
+</html>
