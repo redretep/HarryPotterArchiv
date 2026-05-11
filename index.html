@@ -24,9 +24,25 @@
             overflow: hidden;
         }
 
+        /* Sidebar Responsive Logic */
         .sidebar {
             background-color: black;
             width: 280px;
+            transition: transform 0.3s ease;
+            z-index: 50;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                transform: translateX(-100%);
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
         }
 
         .main-content {
@@ -39,7 +55,9 @@
         .player-bar {
             background-color: var(--spotify-dark-grey);
             border-top: 1px solid #282828;
-            height: 95px;
+            height: auto;
+            min-height: 95px;
+            padding: 10px 16px;
         }
 
         .book-card {
@@ -55,12 +73,18 @@
 
         .track-row {
             display: grid;
-            grid-template-columns: 40px 1fr 100px;
+            grid-template-columns: 30px 1fr 50px;
             align-items: center;
-            padding: 8px 16px;
+            padding: 12px 16px;
             border-radius: 4px;
             transition: background-color 0.2s;
             cursor: pointer;
+        }
+
+        @media (min-width: 640px) {
+            .track-row {
+                grid-template-columns: 40px 1fr 100px;
+            }
         }
 
         .track-row:hover {
@@ -109,16 +133,14 @@
         }
 
         .custom-scrollbar::-webkit-scrollbar {
-            width: 12px;
+            width: 8px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
             background: transparent;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
             background: rgba(255, 255, 255, 0.2);
-            border: 3px solid transparent;
-            background-clip: padding-box;
-            border-radius: 6px;
+            border-radius: 4px;
         }
 
         .loading-overlay {
@@ -150,18 +172,20 @@
         #dlProgressBox {
             position: fixed;
             bottom: 110px;
-            right: 20px;
+            left: 50%;
+            transform: translateX(-50%);
             background: var(--spotify-dark-grey);
             border: 1px solid var(--spotify-light-grey);
             padding: 16px;
             border-radius: 12px;
             box-shadow: 0 15px 35px rgba(0,0,0,0.6);
-            width: 340px;
-            z-index: 50;
+            width: calc(100% - 40px);
+            max-width: 340px;
+            z-index: 60;
             display: none;
         }
 
-        /* Visualizer Bars */
+        /* Visualizer */
         .visualizer {
             display: flex;
             align-items: flex-end;
@@ -185,6 +209,15 @@
             accent-color: var(--spotify-green);
             cursor: pointer;
         }
+
+        /* Overlay for mobile sidebar */
+        #sidebarOverlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 40;
+        }
     </style>
 </head>
 <body class="h-screen flex flex-col">
@@ -192,22 +225,23 @@
     <div id="loader" class="loading-overlay">
         <div class="text-center">
             <div class="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mb-4 mx-auto"></div>
-            <p id="loaderText" class="font-medium text-lg">Harrys Archiv wird geladen...</p>
+            <p id="loaderText" class="font-medium text-lg">Hogwarts-Archive werden geladen...</p>
         </div>
     </div>
 
-    <!-- Download Progress Toast -->
+    <div id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
     <div id="dlProgressBox">
         <div class="flex justify-between items-start mb-3">
             <div>
                 <p class="text-[10px] font-bold uppercase opacity-50 tracking-wider">Download Manager</p>
-                <p id="dlBookTitle" class="text-xs font-bold truncate max-w-[200px]">Buchname</p>
+                <p id="dlBookTitle" class="text-xs font-bold truncate max-w-[150px]">Buchname</p>
             </div>
             <button id="cancelDownloadBtn" class="bg-red-500 hover:bg-red-600 text-white text-[10px] px-2 py-1 rounded font-bold transition-colors">
                 ABBRECHEN
             </button>
         </div>
-        <p id="dlStatus" class="text-xs truncate mb-2">Bereite vor...</p>
+        <p id="dlStatus" class="text-xs truncate mb-2 text-white/70">Bereite vor...</p>
         <div class="progress-bar-container h-1.5 mb-2">
             <div id="dlBarFill" class="progress-bar-fill" style="width: 0%; background-color: var(--spotify-green); transition: width 0.3s ease;"></div>
         </div>
@@ -217,14 +251,26 @@
         </div>
     </div>
 
-    <div class="flex flex-1 overflow-hidden">
+    <div class="flex flex-1 overflow-hidden relative">
+        <!-- Mobile Header with Hamburger -->
+        <header class="md:hidden absolute top-0 left-0 right-0 h-16 flex items-center px-6 z-30 pointer-events-none">
+            <button onclick="toggleSidebar()" class="pointer-events-auto bg-black/50 p-2 rounded-full text-white backdrop-blur-sm">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+            </button>
+        </header>
+
         <!-- Sidebar -->
-        <aside class="sidebar p-6 hidden md:flex flex-col gap-4">
-            <div class="flex items-center gap-2 mb-4">
-                <div class="bg-white p-1 rounded-full text-black">
-                   <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3L4 9v12h16V9l-8-6zm0 2.2L18 10.2V19H6V10.2l6-5z"/></svg>
+        <aside id="sidebar" class="sidebar p-6 flex flex-col gap-4">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                    <div class="bg-white p-1 rounded-full text-black">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3L4 9v12h16V9l-8-6zm0 2.2L18 10.2V19H6V10.2l6-5z"/></svg>
+                    </div>
+                    <h1 class="font-bold text-lg">HP-Archiv</h1>
                 </div>
-                <h1 class="font-bold text-lg">HP-Archiv</h1>
+                <button onclick="toggleSidebar()" class="md:hidden text-white opacity-60">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
             </div>
 
             <div class="relative mb-2">
@@ -237,65 +283,65 @@
                 <div id="sidebarList" class="space-y-3"></div>
             </div>
 
-            <div class="mt-auto border-t border-[#282828] pt-4">
-                <p class="text-[10px] text-[#b3b3b3] tracking-widest font-bold">Besucher Nummer:</p>
-                <p class="text-xl font-mono text-white">{{COUNT}}</p>
+            <div class="mt-auto border-t border-[#282828] pt-4 flex flex-col gap-1">
+                <p class="text-[10px] text-[#b3b3b3] tracking-widest font-bold uppercase">Besucher</p>
+                <p class="text-xl font-mono text-white tracking-tighter">{{COUNT}}</p>
             </div>
         </aside>
 
         <!-- Main Content -->
-        <main class="main-content custom-scrollbar p-6">
+        <main class="main-content custom-scrollbar p-6 pt-20 md:pt-6">
             <!-- Grid View -->
             <div id="gridView" class="view-transition fade-in">
-                <h1 class="text-3xl font-bold mb-6">Alle Hörbücher</h1>
-                <div id="bookGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6"></div>
+                <h1 class="text-2xl md:text-3xl font-bold mb-6">Alle Hörbücher</h1>
+                <div id="bookGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6"></div>
             </div>
 
             <!-- Detail View -->
             <div id="detailView" class="view-transition hidden fade-out">
                 <button id="backBtn" class="mb-6 flex items-center gap-2 text-sm font-bold opacity-70 hover:opacity-100 transition-opacity">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-                    Zurück zur Übersicht
+                    Zurück
                 </button>
                 
-                <div class="flex flex-col md:flex-row gap-8 items-end mb-12">
+                <div class="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-end mb-10">
                     <img id="detailCover" src="" class="w-48 h-48 md:w-64 md:h-64 shadow-2xl rounded-lg object-cover" alt="Cover">
-                    <div class="flex-1">
-                        <p class="text-xs font-bold uppercase tracking-widest mb-2">Hörbuch</p>
-                        <h2 id="detailTitle" class="text-4xl md:text-6xl font-black mb-4 tracking-tight">Titel</h2>
-                        <div class="flex items-center gap-2 text-sm font-medium">
+                    <div class="flex-1 text-center md:text-left">
+                        <p class="text-[10px] md:text-xs font-bold uppercase tracking-widest mb-2 text-[#b3b3b3]">Hörbuch</p>
+                        <h2 id="detailTitle" class="text-2xl md:text-5xl font-black mb-3 tracking-tight leading-tight">Titel</h2>
+                        <div class="flex items-center justify-center md:justify-start gap-2 text-xs md:text-sm font-medium">
                             <span class="text-white">Rufus Beck</span>
                             <span class="opacity-30">•</span>
-                            <span id="detailTrackCount" class="opacity-60 text-xs">0 Kapitel</span>
+                            <span id="detailTrackCount" class="opacity-60">0 Kapitel</span>
                         </div>
                     </div>
                 </div>
 
-                <div class="flex items-center gap-6 mb-10">
+                <div class="flex items-center justify-center md:justify-start gap-6 mb-8">
                     <button id="detailPlayBtn" class="btn-play-hero shadow-xl">
                         <svg class="w-8 h-8 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8,5.14V19.14L19,12.14L8,5.14Z" /></svg>
                     </button>
                     <button id="downloadAll" class="w-12 h-12 flex items-center justify-center rounded-full border border-white border-opacity-20 opacity-60 hover:opacity-100 hover:border-opacity-100 transition-all" title="Alles laden">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                     </button>
                 </div>
 
-                <div class="border-b border-white border-opacity-10 mb-4 pb-2 grid grid-cols-[40px_1fr_100px] px-4 text-[10px] font-bold text-[#b3b3b3] uppercase tracking-widest">
+                <div class="border-b border-white border-opacity-10 mb-4 pb-2 grid grid-cols-[30px_1fr_50px] md:grid-cols-[40px_1fr_100px] px-4 text-[10px] font-bold text-[#b3b3b3] uppercase tracking-widest">
                     <span>#</span>
                     <span>Titel</span>
-                    <span class="text-right">Download</span>
+                    <span class="text-right">Aktion</span>
                 </div>
-                <div id="trackList" class="space-y-1 mb-20"></div>
+                <div id="trackList" class="space-y-1 mb-28"></div>
             </div>
         </main>
     </div>
 
     <!-- Player Bar -->
-    <footer class="player-bar px-4 flex items-center justify-between z-20">
+    <footer class="player-bar flex flex-col md:flex-row items-center justify-between gap-4">
         <!-- Track Info -->
-        <div class="flex items-center gap-4 w-[30%] min-w-[200px]">
-            <div class="relative group">
-                <img id="playerCover" src="" class="w-14 h-14 rounded shadow-md object-cover hidden sm:block" alt="">
+        <div class="flex items-center gap-3 w-full md:w-[30%]">
+            <div class="relative flex-shrink-0">
+                <img id="playerCover" src="" class="w-12 h-12 md:w-14 md:h-14 rounded shadow-md object-cover" alt="">
                 <div id="playerVisualizer" class="visualizer absolute bottom-1 right-1 hidden">
                     <div class="vis-bar" style="animation-delay: 0.1s"></div>
                     <div class="vis-bar" style="animation-delay: 0.3s"></div>
@@ -303,20 +349,20 @@
                 </div>
             </div>
             <div class="overflow-hidden">
-                <div id="playerTrackName" class="text-sm font-semibold truncate">Bereit zum Hören</div>
-                <div id="playerBookName" class="text-[11px] text-[#b3b3b3] truncate lowercase">Hogwarts Archiv</div>
+                <div id="playerTrackName" class="text-xs md:text-sm font-semibold truncate">Wähle ein Kapitel</div>
+                <div id="playerBookName" class="text-[10px] md:text-[11px] text-[#b3b3b3] truncate lowercase">Harry Potter Archiv</div>
             </div>
         </div>
 
         <!-- Controls -->
-        <div class="flex flex-col items-center max-w-[40%] w-full gap-2">
-            <div class="flex items-center gap-6">
-                <button id="prevBtn" class="text-[#b3b3b3] hover:text-white transition-transform active:scale-90"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6,18L14.5,12L6,6V18M16,6V18H18V6H16Z" /></svg></button>
-                <button id="playBtn" class="bg-white text-black rounded-full w-8 h-8 flex items-center justify-center hover:scale-110 active:scale-95 transition-transform">
-                    <svg id="playIcon" class="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8,5.14V19.14L19,12.14L8,5.14Z" /></svg>
-                    <svg id="pauseIcon" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M14,19H18V5H14M6,19H10V5H6V19Z" /></svg>
+        <div class="flex flex-col items-center w-full md:max-w-[40%] gap-2">
+            <div class="flex items-center gap-8 md:gap-6">
+                <button id="prevBtn" class="text-[#b3b3b3] hover:text-white transition-transform active:scale-90"><svg class="w-6 h-6 md:w-5 md:h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6,18L14.5,12L6,6V18M16,6V18H18V6H16Z" /></svg></button>
+                <button id="playBtn" class="bg-white text-black rounded-full w-10 h-10 md:w-8 md:h-8 flex items-center justify-center hover:scale-110 active:scale-95 transition-transform">
+                    <svg id="playIcon" class="w-6 h-6 md:w-5 md:h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8,5.14V19.14L19,12.14L8,5.14Z" /></svg>
+                    <svg id="pauseIcon" class="w-6 h-6 md:w-5 md:h-5 hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M14,19H18V5H14M6,19H10V5H6V19Z" /></svg>
                 </button>
-                <button id="nextBtn" class="text-[#b3b3b3] hover:text-white transition-transform active:scale-90"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M16,18H18V6H16M6,18L14.5,12L6,6V18Z" /></svg></button>
+                <button id="nextBtn" class="text-[#b3b3b3] hover:text-white transition-transform active:scale-90"><svg class="w-6 h-6 md:w-5 md:h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M16,18H18V6H16M6,18L14.5,12L6,6V18Z" /></svg></button>
             </div>
             <div class="flex items-center gap-2 w-full text-[10px] text-[#b3b3b3] font-mono">
                 <span id="currentTime">0:00</span>
@@ -326,8 +372,8 @@
         </div>
 
         <!-- Extra Tools -->
-        <div class="flex items-center justify-end gap-4 w-[30%] min-w-[150px]">
-            <div class="hidden lg:flex items-center gap-2 group">
+        <div class="hidden md:flex items-center justify-end gap-4 w-[30%]">
+            <div class="flex items-center gap-2">
                 <button id="speedBtn" class="text-[10px] font-bold border border-white border-opacity-20 rounded px-1.5 py-0.5 hover:bg-white hover:text-black transition-colors">1x</button>
                 <button id="timerBtn" class="text-[#b3b3b3] hover:text-white transition-colors" title="Sleep Timer">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -395,6 +441,25 @@
             } else {
                 hideDetail();
             }
+            // Close sidebar on navigation on mobile
+            if (window.innerWidth < 768) {
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar.classList.contains('open')) toggleSidebar();
+            }
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const isOpen = sidebar.classList.contains('open');
+            
+            if (isOpen) {
+                sidebar.classList.remove('open');
+                overlay.style.display = 'none';
+            } else {
+                sidebar.classList.add('open');
+                overlay.style.display = 'block';
+            }
         }
 
         function parseCSV(text) {
@@ -416,13 +481,13 @@
             
             Object.values(collections).forEach(book => {
                 const card = document.createElement('div');
-                card.className = 'book-card p-4 rounded-lg shadow-lg';
-                card.innerHTML = `<img src="${book.image}" class="w-full aspect-square object-cover rounded-md mb-4 shadow-md"><h3 class="font-bold text-sm truncate mb-1">${book.shortTitle}</h3><p class="text-xs text-[#b3b3b3]">Rufus Beck</p>`;
+                card.className = 'book-card p-3 md:p-4 rounded-lg shadow-lg';
+                card.innerHTML = `<img src="${book.image}" class="w-full aspect-square object-cover rounded-md mb-3 shadow-md"><h3 class="font-bold text-xs md:text-sm truncate mb-0.5">${book.shortTitle}</h3><p class="text-[10px] md:text-xs text-[#b3b3b3]">Rufus Beck</p>`;
                 card.onclick = () => window.location.hash = `book-${book.id}`;
                 bookGrid.appendChild(card);
 
                 const sideItem = document.createElement('div');
-                sideItem.className = 'text-sm text-[#b3b3b3] hover:text-white cursor-pointer truncate transition-colors sidebar-entry';
+                sideItem.className = 'text-sm text-[#b3b3b3] hover:text-white cursor-pointer truncate transition-colors sidebar-entry py-1';
                 sideItem.innerText = book.shortTitle;
                 sideItem.dataset.title = book.shortTitle.toLowerCase();
                 sideItem.onclick = () => window.location.hash = `book-${book.id}`;
@@ -430,7 +495,6 @@
             });
         }
 
-        // Search Feature
         document.getElementById('sidebarSearch').oninput = (e) => {
             const term = e.target.value.toLowerCase();
             document.querySelectorAll('.sidebar-entry').forEach(el => {
@@ -486,13 +550,13 @@
                 const div = document.createElement('div');
                 div.className = `track-row group ${isActive ? 'active' : ''}`;
                 div.innerHTML = `
-                    <span class="text-sm opacity-50 font-mono">${index + 1}</span>
+                    <span class="text-xs opacity-50 font-mono">${index + 1}</span>
                     <div class="overflow-hidden">
-                        <div class="text-sm font-semibold truncate">${track.name}</div>
-                        <div class="text-[10px] opacity-50 truncate tracking-tight lowercase font-medium">${track.podcast}</div>
+                        <div class="text-xs md:text-sm font-semibold truncate">${track.name}</div>
+                        <div class="text-[9px] md:text-[10px] opacity-50 truncate tracking-tight lowercase font-medium">${track.podcast}</div>
                     </div>
                     <div class="text-right">
-                        <button onclick="event.stopPropagation(); downloadSingle(${index})" class="opacity-0 group-hover:opacity-100 hover:scale-125 transition-all p-2 text-[#b3b3b3] hover:text-white">
+                        <button onclick="event.stopPropagation(); downloadSingle(${index})" class="opacity-100 md:opacity-0 group-hover:opacity-100 hover:scale-125 transition-all p-2 text-[#b3b3b3] hover:text-white">
                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                         </button>
                     </div>`;
@@ -510,7 +574,6 @@
             document.getElementById('playerTrackName').innerText = track.name;
             document.getElementById('playerBookName').innerText = book.shortTitle;
             document.getElementById('playerCover').src = book.image;
-            document.getElementById('playerCover').classList.remove('hidden');
             document.getElementById('playerVisualizer').classList.remove('hidden');
             updatePlayStateUI(); renderTracks();
         }
@@ -524,7 +587,6 @@
             if (detailBtn) detailBtn.innerHTML = isPlaying ? `<svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M14,19H18V5H14M6,19H10V5H6V19Z"/></svg>` : `<svg class="w-8 h-8 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8,5.14V19.14L19,12.14L8,5.14Z"/></svg>`;
         }
 
-        // Playback Tools
         document.getElementById('volumeSlider').oninput = (e) => audio.volume = e.target.value;
         document.getElementById('speedBtn').onclick = (e) => {
             const speeds = [1, 1.25, 1.5, 2];
@@ -609,7 +671,7 @@
                             dr.innerText = "Fallback: Nutze Proxy...";
                             fetchUrl = proxyBase + encodeURIComponent(t.url);
                         } else if (attempt > 1) {
-                            dr.innerText = `CORS Retry ${attempt-1}/3...`;
+                            dr.innerText = `Retry ${attempt-1}/3...`;
                             await new Promise(res => setTimeout(res, 2000));
                         }
 
@@ -631,7 +693,7 @@
                 }
 
                 if (!isDownloading) return;
-                ds.innerText = failedTracks.length > 0 ? "Fertig mit Fehlern" : "ZIP wird erstellt...";
+                ds.innerText = failedTracks.length > 0 ? "Fertig (Fehler bei manchen)" : "ZIP wird erstellt...";
                 const blob = await zip.generateAsync({type:"blob"});
                 saveFile(URL.createObjectURL(blob), `${activeBook.shortTitle}.zip`);
                 isDownloading = false;
