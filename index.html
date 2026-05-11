@@ -39,7 +39,7 @@
         .player-bar {
             background-color: var(--spotify-dark-grey);
             border-top: 1px solid #282828;
-            height: 90px;
+            height: 95px;
         }
 
         .book-card {
@@ -77,6 +77,7 @@
             border-radius: 2px;
             width: 100%;
             cursor: pointer;
+            position: relative;
         }
 
         .progress-bar-fill {
@@ -86,7 +87,10 @@
             transition: background-color 0.1s;
         }
 
-        /* Smooth Transitions */
+        .progress-bar-container:hover .progress-bar-fill {
+            background-color: var(--spotify-green);
+        }
+
         .view-transition {
             transition: opacity 0.6s cubic-bezier(0.23, 1, 0.32, 1), transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
             will-change: opacity, transform;
@@ -156,6 +160,31 @@
             z-index: 50;
             display: none;
         }
+
+        /* Visualizer Bars */
+        .visualizer {
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            height: 14px;
+        }
+        .vis-bar {
+            width: 3px;
+            background: var(--spotify-green);
+            height: 20%;
+        }
+        .playing .vis-bar {
+            animation: bounce 0.8s ease infinite alternate;
+        }
+        @keyframes bounce {
+            from { height: 20%; }
+            to { height: 100%; }
+        }
+
+        input[type="range"] {
+            accent-color: var(--spotify-green);
+            cursor: pointer;
+        }
     </style>
 </head>
 <body class="h-screen flex flex-col">
@@ -163,7 +192,7 @@
     <div id="loader" class="loading-overlay">
         <div class="text-center">
             <div class="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mb-4 mx-auto"></div>
-            <p id="loaderText" class="font-medium text-lg">Hogwarts-Archiv wird geladen...</p>
+            <p id="loaderText" class="font-medium text-lg">Harrys Archiv wird geladen...</p>
         </div>
     </div>
 
@@ -190,10 +219,27 @@
 
     <div class="flex flex-1 overflow-hidden">
         <!-- Sidebar -->
-        <aside class="sidebar p-6 hidden md:flex flex-col gap-6">
-            <div class="flex-1 mt-4 overflow-y-auto custom-scrollbar">
+        <aside class="sidebar p-6 hidden md:flex flex-col gap-4">
+            <div class="flex items-center gap-2 mb-4">
+                <div class="bg-white p-1 rounded-full text-black">
+                   <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3L4 9v12h16V9l-8-6zm0 2.2L18 10.2V19H6V10.2l6-5z"/></svg>
+                </div>
+                <h1 class="font-bold text-lg">HP-Archiv</h1>
+            </div>
+
+            <div class="relative mb-2">
+                <input type="text" id="sidebarSearch" placeholder="Bibliothek durchsuchen..." class="w-full bg-[#242424] text-xs py-2 px-3 pl-8 rounded-full border-none focus:ring-1 focus:ring-white outline-none">
+                <svg class="w-4 h-4 absolute left-2.5 top-2 text-[#b3b3b3]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            </div>
+
+            <div class="flex-1 overflow-y-auto custom-scrollbar">
                 <p class="text-xs font-bold text-[#b3b3b3] uppercase tracking-widest mb-4">Bibliothek</p>
                 <div id="sidebarList" class="space-y-3"></div>
+            </div>
+
+            <div class="mt-auto border-t border-[#282828] pt-4">
+                <p class="text-[10px] text-[#b3b3b3] tracking-widest font-bold">Besucher Nummer:</p>
+                <p class="text-xl font-mono text-white">{{COUNT}}</p>
             </div>
         </aside>
 
@@ -237,7 +283,7 @@
                 <div class="border-b border-white border-opacity-10 mb-4 pb-2 grid grid-cols-[40px_1fr_100px] px-4 text-[10px] font-bold text-[#b3b3b3] uppercase tracking-widest">
                     <span>#</span>
                     <span>Titel</span>
-                    <span class="text-right">Optionen</span>
+                    <span class="text-right">Download</span>
                 </div>
                 <div id="trackList" class="space-y-1 mb-20"></div>
             </div>
@@ -246,14 +292,23 @@
 
     <!-- Player Bar -->
     <footer class="player-bar px-4 flex items-center justify-between z-20">
+        <!-- Track Info -->
         <div class="flex items-center gap-4 w-[30%] min-w-[200px]">
-            <img id="playerCover" src="" class="w-14 h-14 rounded shadow-md object-cover hidden sm:block" alt="">
+            <div class="relative group">
+                <img id="playerCover" src="" class="w-14 h-14 rounded shadow-md object-cover hidden sm:block" alt="">
+                <div id="playerVisualizer" class="visualizer absolute bottom-1 right-1 hidden">
+                    <div class="vis-bar" style="animation-delay: 0.1s"></div>
+                    <div class="vis-bar" style="animation-delay: 0.3s"></div>
+                    <div class="vis-bar" style="animation-delay: 0.2s"></div>
+                </div>
+            </div>
             <div class="overflow-hidden">
                 <div id="playerTrackName" class="text-sm font-semibold truncate">Bereit zum Hören</div>
-                <div id="playerBookName" class="text-[11px] text-[#b3b3b3] truncate lowercase">...</div>
+                <div id="playerBookName" class="text-[11px] text-[#b3b3b3] truncate lowercase">Hogwarts Archiv</div>
             </div>
         </div>
 
+        <!-- Controls -->
         <div class="flex flex-col items-center max-w-[40%] w-full gap-2">
             <div class="flex items-center gap-6">
                 <button id="prevBtn" class="text-[#b3b3b3] hover:text-white transition-transform active:scale-90"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6,18L14.5,12L6,6V18M16,6V18H18V6H16Z" /></svg></button>
@@ -270,8 +325,19 @@
             </div>
         </div>
 
-        <div class="flex items-center justify-end gap-3 w-[30%] min-w-[120px]">
-             <button id="downloadEpisode" class="text-[#b3b3b3] hover:text-white p-2 hover:bg-white hover:bg-opacity-10 rounded-full transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg></button>
+        <!-- Extra Tools -->
+        <div class="flex items-center justify-end gap-4 w-[30%] min-w-[150px]">
+            <div class="hidden lg:flex items-center gap-2 group">
+                <button id="speedBtn" class="text-[10px] font-bold border border-white border-opacity-20 rounded px-1.5 py-0.5 hover:bg-white hover:text-black transition-colors">1x</button>
+                <button id="timerBtn" class="text-[#b3b3b3] hover:text-white transition-colors" title="Sleep Timer">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </button>
+            </div>
+            <div class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-[#b3b3b3]" fill="currentColor" viewBox="0 0 24 24"><path d="M14,3.23V5.29C16.89,6.15 19,8.83 19,12C19,15.17 16.89,17.85 14,18.71V20.77C18.01,19.86 21,16.28 21,12C21,7.72 18.01,4.14 14,3.23M16.5,12C16.5,10.23 15.5,8.71 14,7.97V16.02C15.5,15.29 16.5,13.77 16.5,12M3,9V15H7L12,20V4L7,9H3Z"/></svg>
+                <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="1" class="w-20 lg:w-24 h-1">
+            </div>
+            <button id="downloadEpisode" class="text-[#b3b3b3] hover:text-white p-2 hover:bg-white hover:bg-opacity-10 rounded-full transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg></button>
         </div>
     </footer>
 
@@ -296,6 +362,7 @@
         let currentTrackIndex = -1;
         let _playingBookId = -1;
         let isDownloading = false;
+        let sleepTimer = null;
         const audio = document.getElementById('audioElement');
 
         async function init() {
@@ -355,12 +422,21 @@
                 bookGrid.appendChild(card);
 
                 const sideItem = document.createElement('div');
-                sideItem.className = 'text-sm text-[#b3b3b3] hover:text-white cursor-pointer truncate transition-colors';
+                sideItem.className = 'text-sm text-[#b3b3b3] hover:text-white cursor-pointer truncate transition-colors sidebar-entry';
                 sideItem.innerText = book.shortTitle;
+                sideItem.dataset.title = book.shortTitle.toLowerCase();
                 sideItem.onclick = () => window.location.hash = `book-${book.id}`;
                 sidebarList.appendChild(sideItem);
             });
         }
+
+        // Search Feature
+        document.getElementById('sidebarSearch').oninput = (e) => {
+            const term = e.target.value.toLowerCase();
+            document.querySelectorAll('.sidebar-entry').forEach(el => {
+                el.style.display = el.dataset.title.includes(term) ? 'block' : 'none';
+            });
+        };
 
         function showDetail(id) {
             activeBook = collections[id];
@@ -373,9 +449,9 @@
                     gv.classList.add('hidden');
                     dv.classList.remove('hidden');
                     dv.classList.remove('fade-in', 'fade-out');
-                    void dv.offsetWidth; // Reflow
+                    void dv.offsetWidth;
                     dv.classList.add('fade-in');
-                }, 400); // Etwas längere Pause für smoothes Gefühl
+                }, 400);
             } else {
                 dv.classList.remove('hidden', 'fade-out');
                 dv.classList.add('fade-in');
@@ -435,6 +511,7 @@
             document.getElementById('playerBookName').innerText = book.shortTitle;
             document.getElementById('playerCover').src = book.image;
             document.getElementById('playerCover').classList.remove('hidden');
+            document.getElementById('playerVisualizer').classList.remove('hidden');
             updatePlayStateUI(); renderTracks();
         }
 
@@ -442,9 +519,34 @@
             const isPlaying = !audio.paused;
             document.getElementById('playIcon').classList.toggle('hidden', isPlaying);
             document.getElementById('pauseIcon').classList.toggle('hidden', !isPlaying);
+            document.getElementById('playerVisualizer').classList.toggle('playing', isPlaying);
             const detailBtn = document.getElementById('detailPlayBtn');
             if (detailBtn) detailBtn.innerHTML = isPlaying ? `<svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M14,19H18V5H14M6,19H10V5H6V19Z"/></svg>` : `<svg class="w-8 h-8 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8,5.14V19.14L19,12.14L8,5.14Z"/></svg>`;
         }
+
+        // Playback Tools
+        document.getElementById('volumeSlider').oninput = (e) => audio.volume = e.target.value;
+        document.getElementById('speedBtn').onclick = (e) => {
+            const speeds = [1, 1.25, 1.5, 2];
+            let current = speeds.indexOf(audio.playbackRate);
+            let next = speeds[(current + 1) % speeds.length];
+            audio.playbackRate = next;
+            e.target.innerText = next + 'x';
+        };
+
+        document.getElementById('timerBtn').onclick = () => {
+            if (sleepTimer) {
+                clearTimeout(sleepTimer);
+                sleepTimer = null;
+                alert("Sleep Timer deaktiviert");
+            } else {
+                const mins = prompt("In wie vielen Minuten stoppen?", "30");
+                if (mins) {
+                    sleepTimer = setTimeout(() => audio.pause(), mins * 60000);
+                    alert(`Timer gestellt: Stopp in ${mins} Minuten`);
+                }
+            }
+        };
 
         audio.ontimeupdate = () => {
             if (!audio.duration) return;
@@ -492,15 +594,13 @@
                 let failedTracks = [];
 
                 for (let i = 0; i < total; i++) {
-                    if (!isDownloading) return; // Abbruch Check
+                    if (!isDownloading) return; 
 
                     const t = activeBook.tracks[i];
                     ds.innerText = `Kapitel ${i+1}/${total}: ${t.name}`;
                     dr.innerText = "";
                     
                     let success = false;
-                    // Versuch 1-3: Normal
-                    // Versuch 4: Proxy
                     for (let attempt = 1; attempt <= 4; attempt++) {
                         if (!isDownloading) return;
 
@@ -509,8 +609,8 @@
                             dr.innerText = "Fallback: Nutze Proxy...";
                             fetchUrl = proxyBase + encodeURIComponent(t.url);
                         } else if (attempt > 1) {
-                            dr.innerText = `CORS Retry ${attempt-1}/3 in 3s...`;
-                            await new Promise(res => setTimeout(res, 3000));
+                            dr.innerText = `CORS Retry ${attempt-1}/3...`;
+                            await new Promise(res => setTimeout(res, 2000));
                         }
 
                         try {
@@ -528,23 +628,16 @@
                     const progress = ((i + 1) / total) * 100;
                     df.style.width = `${progress}%`;
                     dp.innerText = `${Math.round(progress)}%`;
-                    await new Promise(res => setTimeout(res, 100)); // Kleine Pause
                 }
 
                 if (!isDownloading) return;
-
-                if (failedTracks.length > 0) {
-                    ds.innerText = `Fertig (${failedTracks.length} Fehler)`;
-                } else {
-                    ds.innerText = "ZIP wird finalisiert...";
-                }
-
+                ds.innerText = failedTracks.length > 0 ? "Fertig mit Fehlern" : "ZIP wird erstellt...";
                 const blob = await zip.generateAsync({type:"blob"});
                 saveFile(URL.createObjectURL(blob), `${activeBook.shortTitle}.zip`);
                 isDownloading = false;
                 setTimeout(() => db.style.display = 'none', 5000);
             } catch(e) { 
-                ds.innerText = "Kritischer Fehler!"; 
+                ds.innerText = "Fehler!"; 
                 isDownloading = false;
             }
         };
