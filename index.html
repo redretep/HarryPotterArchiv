@@ -22,14 +22,17 @@
             font-family: 'Inter', sans-serif;
             margin: 0;
             overflow: hidden;
+            height: 100vh;
         }
 
-        /* Sidebar Responsive Logic */
+        /* Sidebar Logic */
         .sidebar {
             background-color: black;
             width: 280px;
             transition: transform 0.3s ease;
-            z-index: 50;
+            z-index: 100; /* Höchster Index für Mobile */
+            display: flex;
+            flex-direction: column;
         }
 
         @media (max-width: 768px) {
@@ -39,6 +42,8 @@
                 left: 0;
                 bottom: 0;
                 transform: translateX(-100%);
+                width: 85%;
+                max-width: 300px;
             }
             .sidebar.open {
                 transform: translateX(0);
@@ -55,9 +60,9 @@
         .player-bar {
             background-color: var(--spotify-dark-grey);
             border-top: 1px solid #282828;
-            height: auto;
-            min-height: 95px;
-            padding: 10px 16px;
+            padding: 12px 16px;
+            z-index: 80; /* Unter der Sidebar, aber über dem Content */
+            position: relative;
         }
 
         .book-card {
@@ -148,7 +153,7 @@
             position: fixed;
             inset: 0;
             background: rgba(0,0,0,0.9);
-            z-index: 100;
+            z-index: 200;
             place-items: center;
         }
 
@@ -171,7 +176,7 @@
 
         #dlProgressBox {
             position: fixed;
-            bottom: 110px;
+            bottom: 180px; 
             left: 50%;
             transform: translateX(-50%);
             background: var(--spotify-dark-grey);
@@ -181,11 +186,10 @@
             box-shadow: 0 15px 35px rgba(0,0,0,0.6);
             width: calc(100% - 40px);
             max-width: 340px;
-            z-index: 60;
+            z-index: 150;
             display: none;
         }
 
-        /* Visualizer */
         .visualizer {
             display: flex;
             align-items: flex-end;
@@ -210,22 +214,28 @@
             cursor: pointer;
         }
 
-        /* Overlay for mobile sidebar */
         #sidebarOverlay {
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.7);
-            z-index: 40;
+            background: rgba(0,0,0,0.8);
+            z-index: 90;
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            border-top: 1px solid #282828;
+            padding: 20px 24px 40px 24px; /* Deutlich mehr Platz unten für Besucherzahl */
+            background-color: black;
         }
     </style>
 </head>
-<body class="h-screen flex flex-col">
+<body class="flex flex-col">
 
     <div id="loader" class="loading-overlay">
         <div class="text-center">
             <div class="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mb-4 mx-auto"></div>
-            <p id="loaderText" class="font-medium text-lg">Hogwarts-Archive werden geladen...</p>
+            <p id="loaderText" class="font-medium text-lg text-white">Archive werden geladen...</p>
         </div>
     </div>
 
@@ -252,52 +262,48 @@
     </div>
 
     <div class="flex flex-1 overflow-hidden relative">
-        <!-- Mobile Header with Hamburger -->
-        <header class="md:hidden absolute top-0 left-0 right-0 h-16 flex items-center px-6 z-30 pointer-events-none">
-            <button onclick="toggleSidebar()" class="pointer-events-auto bg-black/50 p-2 rounded-full text-white backdrop-blur-sm">
+        <!-- Mobile Menu Trigger -->
+        <header class="md:hidden absolute top-0 left-0 right-0 h-16 flex items-center px-4 z-40">
+            <button onclick="toggleSidebar()" class="bg-black/60 p-2.5 rounded-full text-white backdrop-blur-md border border-white/10 shadow-lg">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
             </button>
         </header>
 
-        <!-- Sidebar -->
-        <aside id="sidebar" class="sidebar p-6 flex flex-col gap-4">
-            <div class="flex items-center justify-between mb-4">
+        <aside id="sidebar" class="sidebar p-6">
+            <div class="flex items-center justify-between mb-6">
                 <div class="flex items-center gap-2">
                     <div class="bg-white p-1 rounded-full text-black">
                         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3L4 9v12h16V9l-8-6zm0 2.2L18 10.2V19H6V10.2l6-5z"/></svg>
                     </div>
                     <h1 class="font-bold text-lg">HP-Archiv</h1>
                 </div>
-                <button onclick="toggleSidebar()" class="md:hidden text-white opacity-60">
+                <button onclick="toggleSidebar()" class="md:hidden text-white opacity-60 hover:opacity-100">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
 
-            <div class="relative mb-2">
-                <input type="text" id="sidebarSearch" placeholder="Bibliothek durchsuchen..." class="w-full bg-[#242424] text-xs py-2 px-3 pl-8 rounded-full border-none focus:ring-1 focus:ring-white outline-none">
-                <svg class="w-4 h-4 absolute left-2.5 top-2 text-[#b3b3b3]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            <div class="relative mb-6">
+                <input type="text" id="sidebarSearch" placeholder="Suche..." class="w-full bg-[#242424] text-xs py-2.5 px-4 pl-10 rounded-full border-none focus:ring-1 focus:ring-white outline-none">
+                <svg class="w-4 h-4 absolute left-3.5 top-3 text-[#b3b3b3]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
             </div>
 
             <div class="flex-1 overflow-y-auto custom-scrollbar">
-                <p class="text-xs font-bold text-[#b3b3b3] uppercase tracking-widest mb-4">Bibliothek</p>
-                <div id="sidebarList" class="space-y-3"></div>
+                <p class="text-[10px] font-bold text-[#b3b3b3] uppercase tracking-[0.15em] mb-4">Bibliothek</p>
+                <div id="sidebarList" class="space-y-1 pb-8"></div>
             </div>
 
-            <div class="mt-auto border-t border-[#282828] pt-4 flex flex-col gap-1">
-                <p class="text-[10px] text-[#b3b3b3] tracking-widest font-bold uppercase">Besucher</p>
-                <p class="text-xl font-mono text-white tracking-tighter">{{COUNT}}</p>
+            <div class="sidebar-footer">
+                <p class="text-[10px] text-[#b3b3b3] tracking-widest font-bold uppercase mb-1">Besucher</p>
+                <p class="text-2xl font-mono text-white tracking-tighter">{{COUNT}}</p>
             </div>
         </aside>
 
-        <!-- Main Content -->
         <main class="main-content custom-scrollbar p-6 pt-20 md:pt-6">
-            <!-- Grid View -->
             <div id="gridView" class="view-transition fade-in">
                 <h1 class="text-2xl md:text-3xl font-bold mb-6">Alle Hörbücher</h1>
                 <div id="bookGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6"></div>
             </div>
 
-            <!-- Detail View -->
             <div id="detailView" class="view-transition hidden fade-out">
                 <button id="backBtn" class="mb-6 flex items-center gap-2 text-sm font-bold opacity-70 hover:opacity-100 transition-opacity">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
@@ -321,69 +327,80 @@
                     <button id="detailPlayBtn" class="btn-play-hero shadow-xl">
                         <svg class="w-8 h-8 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8,5.14V19.14L19,12.14L8,5.14Z" /></svg>
                     </button>
-                    <button id="downloadAll" class="w-12 h-12 flex items-center justify-center rounded-full border border-white border-opacity-20 opacity-60 hover:opacity-100 hover:border-opacity-100 transition-all" title="Alles laden">
+                    <button id="downloadAll" class="w-12 h-12 flex items-center justify-center rounded-full border border-white border-opacity-20 opacity-60 hover:opacity-100 hover:border-opacity-100 transition-all">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                     </button>
                 </div>
 
-                <div class="border-b border-white border-opacity-10 mb-4 pb-2 grid grid-cols-[30px_1fr_50px] md:grid-cols-[40px_1fr_100px] px-4 text-[10px] font-bold text-[#b3b3b3] uppercase tracking-widest">
+                <div class="border-b border-white/10 mb-4 pb-2 grid grid-cols-[30px_1fr_50px] md:grid-cols-[40px_1fr_100px] px-4 text-[10px] font-bold text-[#b3b3b3] uppercase tracking-widest">
                     <span>#</span>
                     <span>Titel</span>
                     <span class="text-right">Aktion</span>
                 </div>
-                <div id="trackList" class="space-y-1 mb-28"></div>
+                <div id="trackList" class="space-y-1 mb-32"></div>
             </div>
         </main>
     </div>
 
     <!-- Player Bar -->
-    <footer class="player-bar flex flex-col md:flex-row items-center justify-between gap-4">
-        <!-- Track Info -->
-        <div class="flex items-center gap-3 w-full md:w-[30%]">
-            <div class="relative flex-shrink-0">
-                <img id="playerCover" src="" class="w-12 h-12 md:w-14 md:h-14 rounded shadow-md object-cover" alt="">
-                <div id="playerVisualizer" class="visualizer absolute bottom-1 right-1 hidden">
-                    <div class="vis-bar" style="animation-delay: 0.1s"></div>
-                    <div class="vis-bar" style="animation-delay: 0.3s"></div>
-                    <div class="vis-bar" style="animation-delay: 0.2s"></div>
+    <footer class="player-bar flex flex-col gap-3">
+        <div class="flex items-center justify-between gap-4">
+            <!-- Track Info -->
+            <div class="flex items-center gap-3 w-[45%] md:w-[30%]">
+                <div class="relative flex-shrink-0">
+                    <img id="playerCover" src="" class="w-10 h-10 md:w-14 md:h-14 rounded shadow-md object-cover bg-white/5" alt="">
+                    <div id="playerVisualizer" class="visualizer absolute bottom-0.5 right-0.5 hidden">
+                        <div class="vis-bar" style="animation-delay: 0.1s"></div>
+                        <div class="vis-bar" style="animation-delay: 0.3s"></div>
+                        <div class="vis-bar" style="animation-delay: 0.2s"></div>
+                    </div>
+                </div>
+                <div class="overflow-hidden">
+                    <div id="playerTrackName" class="text-[11px] md:text-sm font-semibold truncate">Kapitel wählen</div>
+                    <div id="playerBookName" class="text-[9px] md:text-[11px] text-[#b3b3b3] truncate">Harry Potter Archiv</div>
                 </div>
             </div>
-            <div class="overflow-hidden">
-                <div id="playerTrackName" class="text-xs md:text-sm font-semibold truncate">Wähle ein Kapitel</div>
-                <div id="playerBookName" class="text-[10px] md:text-[11px] text-[#b3b3b3] truncate lowercase">Harry Potter Archiv</div>
+
+            <!-- Controls -->
+            <div class="flex flex-col items-center flex-1 md:max-w-[40%] gap-1.5">
+                <div class="flex items-center gap-5 md:gap-8">
+                    <button id="prevBtn" class="text-[#b3b3b3] hover:text-white active:scale-90 transition-all"><svg class="w-6 h-6 md:w-5 md:h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6,18L14.5,12L6,6V18M16,6V18H18V6H16Z" /></svg></button>
+                    <button id="playBtn" class="bg-white text-black rounded-full w-9 h-9 md:w-8 md:h-8 flex items-center justify-center hover:scale-110 active:scale-95 transition-transform">
+                        <svg id="playIcon" class="w-6 h-6 md:w-5 md:h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8,5.14V19.14L19,12.14L8,5.14Z" /></svg>
+                        <svg id="pauseIcon" class="w-6 h-6 md:w-5 md:h-5 hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M14,19H18V5H14M6,19H10V5H6V19Z" /></svg>
+                    </button>
+                    <button id="nextBtn" class="text-[#b3b3b3] hover:text-white active:scale-90 transition-all"><svg class="w-6 h-6 md:w-5 md:h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M16,18H18V6H16M6,18L14.5,12L6,6V18Z" /></svg></button>
+                </div>
+                <div class="flex items-center gap-2 w-full text-[9px] md:text-[10px] text-[#b3b3b3] font-mono">
+                    <span id="currentTime">0:00</span>
+                    <div class="progress-bar-container" id="progressBar"><div class="progress-bar-fill" id="progressFill" style="width: 0%"></div></div>
+                    <span id="duration">0:00</span>
+                </div>
+            </div>
+
+            <!-- Extra Tools -->
+            <div class="hidden md:flex items-center justify-end gap-4 w-[30%]">
+                <button id="speedBtn" class="text-[10px] font-bold border border-white/20 rounded px-1.5 py-0.5 hover:bg-white hover:text-black">1x</button>
+                <button id="timerBtn" class="text-[#b3b3b3] hover:text-white" title="Sleep Timer"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></button>
+                <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-[#b3b3b3]" fill="currentColor" viewBox="0 0 24 24"><path d="M14,3.23V5.29C16.89,6.15 19,8.83 19,12C19,15.17 16.89,17.85 14,18.71V20.77C18.01,19.86 21,16.28 21,12C21,7.72 18.01,4.14 14,3.23M16.5,12C16.5,10.23 15.5,8.71 14,7.97V16.02C15.5,15.29 16.5,13.77 16.5,12M3,9V15H7L12,20V4L7,9H3Z"/></svg>
+                    <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="1" class="w-20 h-1">
+                </div>
+                <button id="downloadEpisode" class="text-[#b3b3b3] hover:text-white"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg></button>
             </div>
         </div>
 
-        <!-- Controls -->
-        <div class="flex flex-col items-center w-full md:max-w-[40%] gap-2">
-            <div class="flex items-center gap-8 md:gap-6">
-                <button id="prevBtn" class="text-[#b3b3b3] hover:text-white transition-transform active:scale-90"><svg class="w-6 h-6 md:w-5 md:h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6,18L14.5,12L6,6V18M16,6V18H18V6H16Z" /></svg></button>
-                <button id="playBtn" class="bg-white text-black rounded-full w-10 h-10 md:w-8 md:h-8 flex items-center justify-center hover:scale-110 active:scale-95 transition-transform">
-                    <svg id="playIcon" class="w-6 h-6 md:w-5 md:h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8,5.14V19.14L19,12.14L8,5.14Z" /></svg>
-                    <svg id="pauseIcon" class="w-6 h-6 md:w-5 md:h-5 hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M14,19H18V5H14M6,19H10V5H6V19Z" /></svg>
-                </button>
-                <button id="nextBtn" class="text-[#b3b3b3] hover:text-white transition-transform active:scale-90"><svg class="w-6 h-6 md:w-5 md:h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M16,18H18V6H16M6,18L14.5,12L6,6V18Z" /></svg></button>
+        <!-- Mobile Controls Row -->
+        <div class="md:hidden flex items-center justify-between gap-4 pt-1 border-t border-white/5">
+            <div class="flex items-center gap-5">
+                <button id="speedBtnMobile" class="text-[10px] font-bold border border-white/20 rounded px-2 py-0.5 active:bg-white active:text-black">1x</button>
+                <button id="timerBtnMobile" class="text-[#b3b3b3] active:text-white"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></button>
+                <button id="downloadEpisodeMobile" class="text-[#b3b3b3] active:text-white"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg></button>
             </div>
-            <div class="flex items-center gap-2 w-full text-[10px] text-[#b3b3b3] font-mono">
-                <span id="currentTime">0:00</span>
-                <div class="progress-bar-container" id="progressBar"><div class="progress-bar-fill" id="progressFill" style="width: 0%"></div></div>
-                <span id="duration">0:00</span>
+            <div class="flex items-center gap-2 flex-1 justify-end max-w-[120px]">
+                <svg class="w-3.5 h-3.5 text-[#b3b3b3]" fill="currentColor" viewBox="0 0 24 24"><path d="M3,9V15H7L12,20V4L7,9H3Z"/></svg>
+                <input type="range" id="volumeSliderMobile" min="0" max="1" step="0.05" value="1" class="w-full h-1">
             </div>
-        </div>
-
-        <!-- Extra Tools -->
-        <div class="hidden md:flex items-center justify-end gap-4 w-[30%]">
-            <div class="flex items-center gap-2">
-                <button id="speedBtn" class="text-[10px] font-bold border border-white border-opacity-20 rounded px-1.5 py-0.5 hover:bg-white hover:text-black transition-colors">1x</button>
-                <button id="timerBtn" class="text-[#b3b3b3] hover:text-white transition-colors" title="Sleep Timer">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                </button>
-            </div>
-            <div class="flex items-center gap-2">
-                <svg class="w-4 h-4 text-[#b3b3b3]" fill="currentColor" viewBox="0 0 24 24"><path d="M14,3.23V5.29C16.89,6.15 19,8.83 19,12C19,15.17 16.89,17.85 14,18.71V20.77C18.01,19.86 21,16.28 21,12C21,7.72 18.01,4.14 14,3.23M16.5,12C16.5,10.23 15.5,8.71 14,7.97V16.02C15.5,15.29 16.5,13.77 16.5,12M3,9V15H7L12,20V4L7,9H3Z"/></svg>
-                <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="1" class="w-20 lg:w-24 h-1">
-            </div>
-            <button id="downloadEpisode" class="text-[#b3b3b3] hover:text-white p-2 hover:bg-white hover:bg-opacity-10 rounded-full transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg></button>
         </div>
     </footer>
 
@@ -441,7 +458,6 @@
             } else {
                 hideDetail();
             }
-            // Close sidebar on navigation on mobile
             if (window.innerWidth < 768) {
                 const sidebar = document.getElementById('sidebar');
                 if (sidebar.classList.contains('open')) toggleSidebar();
@@ -452,14 +468,10 @@
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebarOverlay');
             const isOpen = sidebar.classList.contains('open');
-            
-            if (isOpen) {
-                sidebar.classList.remove('open');
-                overlay.style.display = 'none';
-            } else {
-                sidebar.classList.add('open');
-                overlay.style.display = 'block';
-            }
+            sidebar.classList.toggle('open', !isOpen);
+            overlay.style.display = !isOpen ? 'block' : 'none';
+            if (!isOpen) document.body.style.overflow = 'hidden';
+            else document.body.style.overflow = '';
         }
 
         function parseCSV(text) {
@@ -481,13 +493,13 @@
             
             Object.values(collections).forEach(book => {
                 const card = document.createElement('div');
-                card.className = 'book-card p-3 md:p-4 rounded-lg shadow-lg';
-                card.innerHTML = `<img src="${book.image}" class="w-full aspect-square object-cover rounded-md mb-3 shadow-md"><h3 class="font-bold text-xs md:text-sm truncate mb-0.5">${book.shortTitle}</h3><p class="text-[10px] md:text-xs text-[#b3b3b3]">Rufus Beck</p>`;
+                card.className = 'book-card p-4 rounded-lg shadow-lg';
+                card.innerHTML = `<img src="${book.image}" class="w-full aspect-square object-cover rounded-md mb-3 shadow-md"><h3 class="font-bold text-[11px] md:text-sm truncate mb-0.5">${book.shortTitle}</h3><p class="text-[9px] md:text-xs text-[#b3b3b3]">Rufus Beck</p>`;
                 card.onclick = () => window.location.hash = `book-${book.id}`;
                 bookGrid.appendChild(card);
 
                 const sideItem = document.createElement('div');
-                sideItem.className = 'text-sm text-[#b3b3b3] hover:text-white cursor-pointer truncate transition-colors sidebar-entry py-1';
+                sideItem.className = 'px-4 py-2 text-sm text-[#b3b3b3] hover:text-white hover:bg-white/5 rounded-md cursor-pointer truncate transition-all sidebar-entry';
                 sideItem.innerText = book.shortTitle;
                 sideItem.dataset.title = book.shortTitle.toLowerCase();
                 sideItem.onclick = () => window.location.hash = `book-${book.id}`;
@@ -552,11 +564,11 @@
                 div.innerHTML = `
                     <span class="text-xs opacity-50 font-mono">${index + 1}</span>
                     <div class="overflow-hidden">
-                        <div class="text-xs md:text-sm font-semibold truncate">${track.name}</div>
-                        <div class="text-[9px] md:text-[10px] opacity-50 truncate tracking-tight lowercase font-medium">${track.podcast}</div>
+                        <div class="text-[11px] md:text-sm font-semibold truncate">${track.name}</div>
+                        <div class="text-[8px] md:text-[10px] opacity-50 truncate tracking-tight lowercase font-medium">${track.podcast}</div>
                     </div>
                     <div class="text-right">
-                        <button onclick="event.stopPropagation(); downloadSingle(${index})" class="opacity-100 md:opacity-0 group-hover:opacity-100 hover:scale-125 transition-all p-2 text-[#b3b3b3] hover:text-white">
+                        <button onclick="event.stopPropagation(); downloadSingle(${index})" class="p-2 text-[#b3b3b3] hover:text-white transition-all">
                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                         </button>
                     </div>`;
@@ -587,28 +599,7 @@
             if (detailBtn) detailBtn.innerHTML = isPlaying ? `<svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M14,19H18V5H14M6,19H10V5H6V19Z"/></svg>` : `<svg class="w-8 h-8 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8,5.14V19.14L19,12.14L8,5.14Z"/></svg>`;
         }
 
-        document.getElementById('volumeSlider').oninput = (e) => audio.volume = e.target.value;
-        document.getElementById('speedBtn').onclick = (e) => {
-            const speeds = [1, 1.25, 1.5, 2];
-            let current = speeds.indexOf(audio.playbackRate);
-            let next = speeds[(current + 1) % speeds.length];
-            audio.playbackRate = next;
-            e.target.innerText = next + 'x';
-        };
-
-        document.getElementById('timerBtn').onclick = () => {
-            if (sleepTimer) {
-                clearTimeout(sleepTimer);
-                sleepTimer = null;
-                alert("Sleep Timer deaktiviert");
-            } else {
-                const mins = prompt("In wie vielen Minuten stoppen?", "30");
-                if (mins) {
-                    sleepTimer = setTimeout(() => audio.pause(), mins * 60000);
-                    alert(`Timer gestellt: Stopp in ${mins} Minuten`);
-                }
-            }
-        };
+        function formatTime(s) { const m = Math.floor(s / 60); const sec = Math.floor(s % 60); return `${m}:${sec < 10 ? '0' : ''}${sec}`; }
 
         audio.ontimeupdate = () => {
             if (!audio.duration) return;
@@ -617,97 +608,64 @@
             document.getElementById('duration').innerText = formatTime(audio.duration);
         };
         audio.onended = () => { if (currentTrackIndex + 1 < collections[_playingBookId].tracks.length) playTrack(_playingBookId, currentTrackIndex + 1); };
+        
         document.getElementById('playBtn').onclick = () => { if (audio.src) { audio.paused ? audio.play() : audio.pause(); updatePlayStateUI(); } else if (activeBook) playTrack(activeBook.id, 0); };
-        document.getElementById('detailPlayBtn').onclick = () => document.getElementById('playBtn').click();
         document.getElementById('prevBtn').onclick = () => playTrack(_playingBookId, currentTrackIndex - 1);
         document.getElementById('nextBtn').onclick = () => playTrack(_playingBookId, currentTrackIndex + 1);
         document.getElementById('backBtn').onclick = () => window.location.hash = '';
         document.getElementById('progressBar').onclick = (e) => { const rect = document.getElementById('progressBar').getBoundingClientRect(); audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration; };
 
-        function formatTime(s) { const m = Math.floor(s / 60); const sec = Math.floor(s % 60); return `${m}:${sec < 10 ? '0' : ''}${sec}`; }
+        // Tools
+        const setVolume = (val) => { audio.volume = val; document.getElementById('volumeSlider').value = val; document.getElementById('volumeSliderMobile').value = val; };
+        document.getElementById('volumeSlider').oninput = (e) => setVolume(e.target.value);
+        document.getElementById('volumeSliderMobile').oninput = (e) => setVolume(e.target.value);
+
+        const toggleSpeed = () => { const s = [1, 1.25, 1.5, 2]; let n = s[(s.indexOf(audio.playbackRate) + 1) % s.length]; audio.playbackRate = n; document.getElementById('speedBtn').innerText = n + 'x'; document.getElementById('speedBtnMobile').innerText = n + 'x'; };
+        document.getElementById('speedBtn').onclick = toggleSpeed;
+        document.getElementById('speedBtnMobile').onclick = toggleSpeed;
+
+        const setTimer = () => { let m = prompt("Minuten bis Stopp?", "30"); if (m) { if (sleepTimer) clearTimeout(sleepTimer); sleepTimer = setTimeout(() => audio.pause(), m * 60000); } };
+        document.getElementById('timerBtn').onclick = setTimer;
+        document.getElementById('timerBtnMobile').onclick = setTimer;
 
         window.downloadSingle = (idx) => { const t = activeBook.tracks[idx]; saveFile(t.url, `${t.name}.mp3`); };
-        document.getElementById('downloadEpisode').onclick = () => { if (currentTrackIndex !== -1) saveFile(collections[_playingBookId].tracks[currentTrackIndex].url, `${collections[_playingBookId].tracks[currentTrackIndex].name}.mp3`); };
-
-        document.getElementById('cancelDownloadBtn').onclick = () => {
-            isDownloading = false;
-            document.getElementById('dlStatus').innerText = "Abgebrochen...";
-            setTimeout(() => document.getElementById('dlProgressBox').style.display = 'none', 1500);
-        };
+        const dlCurrent = () => { if (currentTrackIndex !== -1) downloadSingle(currentTrackIndex); };
+        document.getElementById('downloadEpisode').onclick = dlCurrent;
+        document.getElementById('downloadEpisodeMobile').onclick = dlCurrent;
 
         document.getElementById('downloadAll').onclick = async () => {
             if (!activeBook || isDownloading) return;
             isDownloading = true;
-
             const db = document.getElementById('dlProgressBox');
-            const ds = document.getElementById('dlStatus');
-            const dr = document.getElementById('dlRetryStatus');
-            const df = document.getElementById('dlBarFill');
-            const dp = document.getElementById('dlPercentage');
-            const dt = document.getElementById('dlBookTitle');
-            
-            dt.innerText = activeBook.shortTitle;
             db.style.display = 'block';
+            document.getElementById('dlBookTitle').innerText = activeBook.shortTitle;
             
             try {
                 const zip = new JSZip();
                 const folder = zip.folder(activeBook.shortTitle);
-                const total = activeBook.tracks.length;
-                let failedTracks = [];
-
-                for (let i = 0; i < total; i++) {
-                    if (!isDownloading) return; 
-
+                for (let i = 0; i < activeBook.tracks.length; i++) {
+                    if (!isDownloading) break;
                     const t = activeBook.tracks[i];
-                    ds.innerText = `Kapitel ${i+1}/${total}: ${t.name}`;
-                    dr.innerText = "";
-                    
-                    let success = false;
-                    for (let attempt = 1; attempt <= 4; attempt++) {
-                        if (!isDownloading) return;
-
-                        let fetchUrl = t.url;
-                        if (attempt === 4) {
-                            dr.innerText = "Fallback: Nutze Proxy...";
-                            fetchUrl = proxyBase + encodeURIComponent(t.url);
-                        } else if (attempt > 1) {
-                            dr.innerText = `Retry ${attempt-1}/3...`;
-                            await new Promise(res => setTimeout(res, 2000));
-                        }
-
-                        try {
-                            const r = await fetch(fetchUrl);
-                            if (!r.ok) throw new Error("Fetch failed");
-                            const blob = await r.blob();
-                            folder.file(`${String(i+1).padStart(2, '0')} - ${t.name.replace(/[^\w\s-]/gi, '')}.mp3`, blob);
-                            success = true;
-                            break; 
-                        } catch (e) {
-                            if (attempt === 4) failedTracks.push(t.name);
-                        }
-                    }
-
-                    const progress = ((i + 1) / total) * 100;
-                    df.style.width = `${progress}%`;
-                    dp.innerText = `${Math.round(progress)}%`;
+                    document.getElementById('dlStatus').innerText = `Lade: ${t.name}`;
+                    try {
+                        const r = await fetch(proxyBase + encodeURIComponent(t.url));
+                        const blob = await r.blob();
+                        folder.file(`${i+1}. ${t.name}.mp3`, blob);
+                    } catch(e) {}
+                    const p = ((i + 1) / activeBook.tracks.length) * 100;
+                    document.getElementById('dlBarFill').style.width = p + '%';
+                    document.getElementById('dlPercentage').innerText = Math.round(p) + '%';
                 }
-
-                if (!isDownloading) return;
-                ds.innerText = failedTracks.length > 0 ? "Fertig (Fehler bei manchen)" : "ZIP wird erstellt...";
-                const blob = await zip.generateAsync({type:"blob"});
-                saveFile(URL.createObjectURL(blob), `${activeBook.shortTitle}.zip`);
-                isDownloading = false;
-                setTimeout(() => db.style.display = 'none', 5000);
-            } catch(e) { 
-                ds.innerText = "Fehler!"; 
-                isDownloading = false;
-            }
+                if (isDownloading) {
+                    const content = await zip.generateAsync({type:"blob"});
+                    saveFile(URL.createObjectURL(content), `${activeBook.shortTitle}.zip`);
+                }
+            } catch(e) {}
+            isDownloading = false;
+            setTimeout(() => db.style.display = 'none', 3000);
         };
 
-        function saveFile(url, name) { 
-            const a = document.createElement('a'); a.href = url; a.download = name; a.target = "_blank"; 
-            document.body.appendChild(a); a.click(); document.body.removeChild(a); 
-        }
+        function saveFile(url, name) { const a = document.createElement('a'); a.href = url; a.download = name; a.click(); }
 
         init();
     </script>
